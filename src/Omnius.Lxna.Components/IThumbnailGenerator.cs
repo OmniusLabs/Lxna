@@ -11,18 +11,26 @@ namespace Omnius.Lxna.Components
 {
     public interface IThumbnailGeneratorFactory
     {
-        ValueTask<IThumbnailGenerator> CreateAsync(ThumbnailGeneratorOptions options);
+        ValueTask<IThumbnailGenerator> CreateAsync(ThumbnailGeneratorOptions options, CancellationToken cancellationToken = default);
     }
 
-    public class ThumbnailGeneratorOptions
+    public record ThumbnailGeneratorOptions
     {
-        public string? ConfigDirectoryPath { get; init; }
+        public ThumbnailGeneratorOptions(string configDirectoryPath, uint concurrency, IFileSystem fileSystem, IBytesPool bytesPool)
+        {
+            this.ConfigDirectoryPath = configDirectoryPath;
+            this.Concurrency = concurrency;
+            this.FileSystem = fileSystem;
+            this.BytesPool = bytesPool;
+        }
 
-        public uint Concurrency { get; init; }
+        public string ConfigDirectoryPath { get; }
 
-        public IFileSystem? FileSystem { get; init; }
+        public uint Concurrency { get; }
 
-        public IBytesPool? BytesPool { get; init; }
+        public IFileSystem FileSystem { get; }
+
+        public IBytesPool BytesPool { get; }
     }
 
     public interface IThumbnailGenerator : IAsyncDisposable
@@ -30,7 +38,7 @@ namespace Omnius.Lxna.Components
         ValueTask<ThumbnailGeneratorGetThumbnailResult> GetThumbnailAsync(NestedPath filePath, ThumbnailGeneratorGetThumbnailOptions options, bool cacheOnly = false, CancellationToken cancellationToken = default);
     }
 
-    public readonly struct ThumbnailGeneratorGetThumbnailOptions
+    public record ThumbnailGeneratorGetThumbnailOptions
     {
         public ThumbnailGeneratorGetThumbnailOptions(int width, int height, ThumbnailFormatType formatType, ThumbnailResizeType resizeType, TimeSpan minInterval, int maxImageCount)
         {

@@ -22,7 +22,7 @@ namespace Omnius.Lxna.Components
         private readonly string _tempDirPath;
         private readonly IBytesPool _bytesPool;
 
-        private readonly ArchiveFileExtractorCreator _archiveFileExtractorCreator;
+        private readonly ArchiveFileExtractorPool _archiveFileExtractorCreator;
         private readonly ExtractedFileCollector _extractedFileCollector;
 
         private Task _watchTask = null!;
@@ -32,7 +32,7 @@ namespace Omnius.Lxna.Components
 
         internal sealed class FileSystemFactory : IFileSystemFactory
         {
-            public async ValueTask<IFileSystem> CreateAsync(FileSystemOptions options)
+            public async ValueTask<IFileSystem> CreateAsync(FileSystemOptions options, CancellationToken cancellationToken = default)
             {
                 var result = new FileSystem(options);
                 await result.InitAsync();
@@ -49,7 +49,7 @@ namespace Omnius.Lxna.Components
             _tempDirPath = options.TemporaryDirectoryPath ?? Path.Combine(Path.GetTempPath(), "FileSystem");
             _bytesPool = options.BytesPool ?? BytesPool.Shared;
 
-            _archiveFileExtractorCreator = new ArchiveFileExtractorCreator(_archiveFileExtractorFactory, _tempDirPath, _bytesPool);
+            _archiveFileExtractorCreator = new ArchiveFileExtractorPool(_archiveFileExtractorFactory, _tempDirPath, _bytesPool);
             _extractedFileCollector = new ExtractedFileCollector(_archiveFileExtractorCreator, _tempDirPath);
         }
 
@@ -386,15 +386,15 @@ namespace Omnius.Lxna.Components
         {
             private static readonly NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
 
-            private readonly ArchiveFileExtractorCreator _archiveFileExtractorCreator;
+            private readonly ArchiveFileExtractorPool _archiveFileExtractorPool;
             private readonly string _tempDirPath;
 
             private readonly Dictionary<NestedPath, ExtractedFileEntry> _entries = new();
             private readonly AsyncLock _asyncLock = new();
 
-            public ExtractedFileCollector(ArchiveFileExtractorCreator archiveFileExtractorCreator, string tempDirPath)
+            public ExtractedFileCollector(ArchiveFileExtractorPool archiveFileExtractorPool, string tempDirPath)
             {
-                _archiveFileExtractorCreator = archiveFileExtractorCreator;
+                _archiveFileExtractorPool = archiveFileExtractorPool;
                 _tempDirPath = tempDirPath;
             }
 
@@ -422,9 +422,9 @@ namespace Omnius.Lxna.Components
                     if (!_entries.TryGetValue(path, out var entry))
                     {
                         var archiveFilePath = new NestedPath(path.Values.ToArray()[..^1]);
-                        var archiveFileExtractor = await _archiveFileExtractorCreator.GetArchiveFileExtractorAsync(archiveFilePath, cancellationToken);
+                        var archiveFileExtractor = await _archiveFileExtractorPool.GetArchiveFileExtractorAsync(archiveFilePath, cancellationToken);
 
-                        using var tempFileStream = TempFileHelper.GenStream(_tempDirPath, path.GetExtension());
+                        using var tempFileStream = TempFileHelper.GenFileStream(_tempDirPath, path.GetExtension());
                         await archiveFileExtractor.ExtractFileAsync(path.Values[^1], tempFileStream, cancellationToken);
 
                         entry = new ExtractedFileEntry(tempFileStream.Name);

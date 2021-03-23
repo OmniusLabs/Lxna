@@ -12,7 +12,7 @@ namespace Omnius.Lxna.Components
 {
     public sealed partial class FileSystem
     {
-        internal sealed class ArchiveFileExtractorCreator : DisposableBase
+        internal sealed class ArchiveFileExtractorPool : DisposableBase
         {
             private readonly IArchiveFileExtractorFactory _archiveFileExtractorFactory;
             private readonly string _tempDirPath;
@@ -23,7 +23,7 @@ namespace Omnius.Lxna.Components
             private readonly AsyncLock _asyncLock = new();
             private const int MaxCacheCount = 256;
 
-            public ArchiveFileExtractorCreator(IArchiveFileExtractorFactory archiveFileExtractorFactory, string tempDirPath, IBytesPool bytesPool)
+            public ArchiveFileExtractorPool(IArchiveFileExtractorFactory archiveFileExtractorFactory, string tempDirPath, IBytesPool bytesPool)
             {
                 _archiveFileExtractorFactory = archiveFileExtractorFactory;
                 _tempDirPath = tempDirPath;
@@ -75,17 +75,13 @@ namespace Omnius.Lxna.Components
                         }
                         else
                         {
-                            using var tempFileStream = TempFileHelper.GenStream(_tempDirPath, targetPath.GetExtension());
+                            using var tempFileStream = TempFileHelper.GenFileStream(_tempDirPath, targetPath.GetExtension());
                             await lastArchiveFileExtractor.ExtractFileAsync(targetPath.Values[^1], tempFileStream, cancellationToken);
                             lastArchiveFilePath = tempFileStream.Name;
                         }
 
-                        var archiveFileExtractorOptions = new ArchiveFileExtractorOptions()
-                        {
-                            ArchiveFilePath = lastArchiveFilePath,
-                            BytesPool = _bytesPool,
-                        };
-                        var archiveFileExtractor = await _archiveFileExtractorFactory.CreateAsync(archiveFileExtractorOptions);
+                        var archiveFileExtractorOptions = new ArchiveFileExtractorOptions(lastArchiveFilePath, _bytesPool);
+                        var archiveFileExtractor = await _archiveFileExtractorFactory.CreateAsync(archiveFileExtractorOptions, cancellationToken);
 
                         _entries.Add(targetPath, new ArchiveFileExtractorEntry(archiveFileExtractor, lastArchiveFilePath, DateTime.UtcNow));
                         lastArchiveFileExtractor = archiveFileExtractor;

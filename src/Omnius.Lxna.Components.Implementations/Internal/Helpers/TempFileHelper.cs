@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Omnius.Core.Helpers;
 using Omnius.Core.Serialization;
 using Omnius.Core.Serialization.Extensions;
 
@@ -10,9 +11,10 @@ namespace Omnius.Lxna.Components.Internal.Helpers
         private static readonly Random _random = new();
         private static readonly Lazy<Base16> _base16 = new(() => new Base16(), true);
 
-        public static FileStream GenStream(string destinationDirectoryPath, string extension)
+        public static FileStream GenFileStream(string destinationDirectoryPath, string extension)
         {
             var buffer = new byte[32];
+            int loopCount = 0;
 
             for (; ; )
             {
@@ -22,12 +24,13 @@ namespace Omnius.Lxna.Components.Internal.Helpers
 
                 try
                 {
+                    DirectoryHelper.CreateDirectory(destinationDirectoryPath);
                     var stream = new FileStream(tempFilePath, FileMode.CreateNew);
                     return stream;
                 }
                 catch (IOException)
                 {
-                    continue;
+                    if (++loopCount >= 100) throw;
                 }
             }
         }

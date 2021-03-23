@@ -9,7 +9,7 @@
     {
         ("Thumbnail_Width", "int"),
         ("Thumbnail_Height", "int"),
-        ("SearchControl_TreeViewWidth", "double"),
+        ("FileView_TreeViewWidth", "double"),
     };
 
     static string GenFieldName(string name)

@@ -18,12 +18,7 @@ namespace Omnius.Lxna.Components
             using var deleter = FixtureFactory.GenTempDirectory(out var tempDirPath);
             var testDir = Path.Combine(TestEnvironment.GetBasePath(), "Data/NestedArchiveFileTest");
 
-            var fileSystemOptions = new FileSystemOptions()
-            {
-                ArchiveFileExtractorFactory = ArchiveFileExtractor.Factory,
-                TemporaryDirectoryPath = tempDirPath,
-                BytesPool = BytesPool.Shared,
-            };
+            var fileSystemOptions = new FileSystemOptions(ArchiveFileExtractor.Factory, tempDirPath, BytesPool.Shared);
             await using (var fileSystem = await FileSystem.Factory.CreateAsync(fileSystemOptions))
             {
                 var rank1 = await fileSystem.FindArchiveFilesAsync(new NestedPath(new[] { testDir }));

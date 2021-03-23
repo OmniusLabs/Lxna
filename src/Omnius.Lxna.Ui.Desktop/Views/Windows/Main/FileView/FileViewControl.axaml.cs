@@ -2,6 +2,8 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
+using Avalonia.LogicalTree;
+using System.Collections.Generic;
 
 namespace Omnius.Lxna.Ui.Desktop.Views.Windows.Main.FileView
 {
@@ -34,11 +36,35 @@ namespace Omnius.Lxna.Ui.Desktop.Views.Windows.Main.FileView
 
             if (e.Source is IDataContextProvider control)
             {
+                var treeView = this.FindControl<TreeView>("TreeView");
+                var v = treeView.ItemContainerGenerator.Index.ContainerFromItem(treeView.SelectedItem) as TreeViewItem;
+                treeView.ExpandSubTree(v);
+
                 this.Model.NotifyDoubleTapped(control.DataContext);
             }
         }
 
+        public static IEnumerable<T> FindVisualChild<T>(ILogical obj)
+        {
+            var targets = new List<ILogical>();
+            targets.Add(obj);
+
+            var results = new List<T>();
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                foreach (var child in targets[i].GetLogicalDescendants())
+                {
+                    targets.Add(child);
+                    if (child is T ret) results.Add(ret);
+                }
+            }
+
+            return results;
+        }
+
         private void ItemsRepeater_ElementPrepared(object? sender, ItemsRepeaterElementPreparedEventArgs e)
+
         {
             if (this.Model is null) throw new NullReferenceException(nameof(this.Model));
 

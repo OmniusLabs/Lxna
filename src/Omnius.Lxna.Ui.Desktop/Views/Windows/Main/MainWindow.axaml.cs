@@ -30,10 +30,27 @@ namespace Omnius.Lxna.Ui.Desktop.Views.Windows.Main
             var temporaryDirectoryPath = Path.Combine(Directory.GetCurrentDirectory(), "../temp/ui-desktop");
             var bytesPool = BytesPool.Shared;
 
+            ClearDirectory(temporaryDirectoryPath);
+
             _state = await AppState.Factory.CreateAsync(stateDirectoryPath, temporaryDirectoryPath, bytesPool);
 
             this.Model = new MainWindowModel(_state);
             this.FileViewControl.Model = new FileViewControlModel(_state);
+        }
+
+        private static void ClearDirectory(string path)
+        {
+            var di = new DirectoryInfo(path);
+
+            foreach (var file in di.EnumerateFiles())
+            {
+                file.Delete();
+            }
+
+            foreach (var dir in di.EnumerateDirectories())
+            {
+                dir.Delete(true);
+            }
         }
 
         protected override async ValueTask OnDispose()

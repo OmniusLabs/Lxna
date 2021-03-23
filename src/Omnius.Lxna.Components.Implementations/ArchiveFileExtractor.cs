@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Omnius.Core;
 using Omnius.Core.Io;
+using Omnius.Lxna.Components.Internal;
 using Omnius.Lxna.Components.Internal.Helpers;
 using SevenZipExtractor;
 
@@ -23,14 +24,12 @@ namespace Omnius.Lxna.Components
         private readonly Dictionary<string, Entry> _fileEntryMap = new();
         private readonly HashSet<string> _dirSet = new();
 
-        private readonly Random _random = new();
-
         internal sealed class ArchiveFileExtractorFactory : IArchiveFileExtractorFactory
         {
-            public async ValueTask<IArchiveFileExtractor> CreateAsync(ArchiveFileExtractorOptions options)
+            public async ValueTask<IArchiveFileExtractor> CreateAsync(ArchiveFileExtractorOptions options, CancellationToken cancellationToken = default)
             {
                 var result = new ArchiveFileExtractor(options);
-                await result.InitAsync();
+                await result.InitAsync(cancellationToken);
 
                 return result;
             }
@@ -40,47 +39,64 @@ namespace Omnius.Lxna.Components
 
         internal ArchiveFileExtractor(ArchiveFileExtractorOptions options)
         {
-            _archiveFilePath = options.ArchiveFilePath ?? throw new ArgumentNullException(nameof(options.ArchiveFilePath));
-            _bytesPool = options.BytesPool ?? BytesPool.Shared;
+            _archiveFilePath = options.ArchiveFilePath;
+            _bytesPool = options.BytesPool;
         }
 
-        internal async ValueTask InitAsync()
+        internal async ValueTask InitAsync(CancellationToken cancellationToken = default)
         {
-            await Task.Delay(1).ConfigureAwait(false);
+            await Task.Delay(1, cancellationToken).ConfigureAwait(false);
 
             _archiveFile = new ArchiveFile(_archiveFilePath);
-
-            this.ComputeFilesAndDirs();
+            this.ComputeFilesAndDirs(cancellationToken);
         }
 
-        private void ComputeFilesAndDirs()
+        private void ComputeFilesAndDirs(CancellationToken cancellationToken = default)
         {
-            foreach (var entry in _archiveFile.Entries)
+            try
             {
-                if (entry.IsFolder)
+                using var canceller = cancellationToken.Register(() => _archiveFile.Dispose());
+
+                foreach (var entry in _archiveFile.Entries)
                 {
-                    var dirPath = PathHelper.Normalize(entry.FileName);
-                    _dirSet.Add(dirPath);
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    if (entry.IsFolder)
+                    {
+                        var dirPath = PathHelper.Normalize(entry.FileName);
+                        _dirSet.Add(dirPath);
+                    }
+                    else
+                    {
+                        var filePath = PathHelper.Normalize(entry.FileName);
+                        _fileEntryMap[filePath] = entry;
+                    }
                 }
-                else
+
+                foreach (var filePath in _fileEntryMap.Keys)
                 {
-                    var filePath = PathHelper.Normalize(entry.FileName);
-                    _fileEntryMap.Add(filePath, entry);
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    foreach (var dirPath in PathHelper.ExtractDirectories(filePath))
+                    {
+                        _dirSet.Add(dirPath);
+                    }
                 }
             }
-
-            foreach (var filePath in _fileEntryMap.Keys)
+            catch (OperationCanceledException)
             {
-                foreach (var dirPath in PathHelper.ExtractDirectories(filePath))
-                {
-                    _dirSet.Add(dirPath);
-                }
+                throw;
+            }
+            catch (Exception e)
+            {
+                _logger.Warn(e);
+                cancellationToken.ThrowIfCancellationRequested();
             }
         }
 
         protected override void OnDispose(bool disposing)
         {
-            _archiveFile.Dispose();
+            _archiveFile?.Dispose();
             _fileEntryMap.Clear();
             _dirSet.Clear();
         }
@@ -157,8 +173,12 @@ namespace Omnius.Lxna.Components
             if (_fileEntryMap.TryGetValue(path, out var entry))
             {
                 var memoryStream = new RecyclableMemoryStream(_bytesPool);
-                entry.Extract(memoryStream);
-                await memoryStream.FlushAsync(cancellationToken);
+
+                using (var cancellableStream = new CancellableStream(memoryStream, cancellationToken, true))
+                {
+                    entry.Extract(cancellableStream);
+                    await cancellableStream.FlushAsync(cancellationToken);
+                }
 
                 memoryStream.Seek(0, SeekOrigin.Begin);
                 return memoryStream;
@@ -181,8 +201,10 @@ namespace Omnius.Lxna.Components
         {
             if (_fileEntryMap.TryGetValue(path, out var entry))
             {
-                entry.Extract(stream);
-                await stream.FlushAsync(cancellationToken);
+                using var cancellableStream = new CancellableStream(stream, cancellationToken, true);
+                entry.Extract(cancellableStream);
+                await cancellableStream.FlushAsync(cancellationToken);
+
                 return;
             }
 

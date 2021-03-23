@@ -31,13 +31,13 @@ namespace Omnius.Lxna.Components
 
         private readonly ThumbnailGeneratorRepository _thumbnailGeneratorRepository;
 
-        private static readonly HashSet<string> _pictureTypeExtensionList = new HashSet<string>() { ".bmp", ".jpg", ".jpeg", ".png", ".gif", ".heic" };
-        private static readonly HashSet<string> _movieTypeExtensionList = new HashSet<string>() { ".mp4", ".avi", ".wmv", ".mov", ".m4v", ".mkv", ".mpg", ".flv" };
-        private static readonly Base16 _base16 = new Base16(ConvertStringCase.Lower);
+        private static readonly HashSet<string> _pictureTypeExtensionList = new() { ".bmp", ".jpg", ".jpeg", ".png", ".gif", ".heic" };
+        private static readonly HashSet<string> _movieTypeExtensionList = new() { ".mp4", ".avi", ".wmv", ".mov", ".m4v", ".mkv", ".mpg", ".flv" };
+        private static readonly Base16 _base16 = new(ConvertStringCase.Lower);
 
         internal sealed class ThumbnailGeneratorFactory : IThumbnailGeneratorFactory
         {
-            public async ValueTask<IThumbnailGenerator> CreateAsync(ThumbnailGeneratorOptions options)
+            public async ValueTask<IThumbnailGenerator> CreateAsync(ThumbnailGeneratorOptions options, CancellationToken cancellationToken = default)
             {
                 var result = new ThumbnailGenerator(options);
                 await result.InitAsync();
@@ -50,10 +50,10 @@ namespace Omnius.Lxna.Components
 
         internal ThumbnailGenerator(ThumbnailGeneratorOptions options)
         {
-            _configPath = options.ConfigDirectoryPath ?? throw new ArgumentNullException(nameof(options.ConfigDirectoryPath));
+            _configPath = options.ConfigDirectoryPath;
             _concurrency = options.Concurrency;
-            _fileSystem = options.FileSystem ?? throw new ArgumentNullException(nameof(options.FileSystem));
-            _bytesPool = options.BytesPool ?? BytesPool.Shared;
+            _fileSystem = options.FileSystem;
+            _bytesPool = options.BytesPool;
 
             _thumbnailGeneratorRepository = new ThumbnailGeneratorRepository(Path.Combine(_configPath, "thumbnails.db"), _bytesPool);
         }
@@ -184,7 +184,8 @@ namespace Omnius.Lxna.Components
 
         private async ValueTask<ThumbnailGeneratorGetThumbnailResult> GetMovieThumbnailAsync(NestedPath filePath, ThumbnailGeneratorGetThumbnailOptions options, CancellationToken cancellationToken = default)
         {
-            if (!_movieTypeExtensionList.Contains(filePath.GetExtension().ToLower()))
+            var ext = filePath.GetExtension().ToLower();
+            if (!_movieTypeExtensionList.Contains(ext))
             {
                 return new ThumbnailGeneratorGetThumbnailResult(ThumbnailGeneratorResultStatus.Failed);
             }

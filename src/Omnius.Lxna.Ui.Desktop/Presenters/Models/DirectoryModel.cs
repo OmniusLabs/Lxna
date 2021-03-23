@@ -2,24 +2,26 @@ using System;
 using System.Collections.Generic;
 using Omnius.Lxna.Components;
 using Omnius.Lxna.Components.Models;
-using Omnius.Lxna.Ui.Desktop.Interactors.Models.Primitives;
+using Omnius.Lxna.Ui.Desktop.Presenters.Models.Primitives;
 
-namespace Omnius.Lxna.Ui.Desktop.Interactors.Models
+namespace Omnius.Lxna.Ui.Desktop.Presenters.Models
 {
     public sealed class DirectoryModel : BindableBase
     {
         private static readonly NLog.Logger _logger = NLog.LogManager.GetCurrentClassLogger();
 
         private readonly IFileSystem _fileSystem;
+        private readonly Action<DirectoryModel> _expanded;
 
-        public DirectoryModel(NestedPath path, IFileSystem fileSystem)
+        public DirectoryModel(NestedPath path, IFileSystem fileSystem, Action<DirectoryModel> expanded)
         {
             this.Path = path;
+            if (this.Path == NestedPath.Empty) return;
+
             _fileSystem = fileSystem;
+            _expanded = expanded;
 
-            if (path == NestedPath.Empty) return;
-
-            this.Children = new[] { new DirectoryModel(NestedPath.Empty, _fileSystem) };
+            this.Children = new[] { new DirectoryModel(NestedPath.Empty, _fileSystem, _expanded) };
         }
 
         private NestedPath _path = NestedPath.Empty;
@@ -53,7 +55,7 @@ namespace Omnius.Lxna.Ui.Desktop.Interactors.Models
             set
             {
                 this.SetProperty(ref _isExpanded, value);
-                this.RefreshChildrenAsync();
+                _expanded.Invoke(this);
             }
         }
 
@@ -63,24 +65,6 @@ namespace Omnius.Lxna.Ui.Desktop.Interactors.Models
         {
             get => _children;
             set => this.SetProperty(ref _children, value);
-        }
-
-        // FIXME
-        public async void RefreshChildrenAsync()
-        {
-            var children = new List<DirectoryModel>();
-
-            foreach (var directoryPath in await _fileSystem.FindDirectoriesAsync(this.Path))
-            {
-                children.Add(new DirectoryModel(directoryPath, _fileSystem));
-            }
-
-            foreach (var archiveFilePath in await _fileSystem.FindArchiveFilesAsync(this.Path))
-            {
-                children.Add(new DirectoryModel(archiveFilePath, _fileSystem));
-            }
-
-            this.Children = children;
         }
     }
 }

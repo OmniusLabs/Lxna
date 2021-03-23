@@ -9,14 +9,20 @@ namespace Omnius.Lxna.Components
 {
     public interface IArchiveFileExtractorFactory
     {
-        ValueTask<IArchiveFileExtractor> CreateAsync(ArchiveFileExtractorOptions options);
+        ValueTask<IArchiveFileExtractor> CreateAsync(ArchiveFileExtractorOptions options, CancellationToken cancellationToken = default);
     }
 
-    public class ArchiveFileExtractorOptions
+    public record ArchiveFileExtractorOptions
     {
-        public string? ArchiveFilePath { get; init; }
+        public ArchiveFileExtractorOptions(string archiveFilePath, IBytesPool bytesPool)
+        {
+            this.ArchiveFilePath = archiveFilePath;
+            this.BytesPool = bytesPool;
+        }
 
-        public IBytesPool? BytesPool { get; init; }
+        public string ArchiveFilePath { get; }
+
+        public IBytesPool BytesPool { get; }
     }
 
     public interface IArchiveFileExtractor : IDisposable

@@ -10,16 +10,23 @@ namespace Omnius.Lxna.Components
 {
     public interface IFileSystemFactory
     {
-        ValueTask<IFileSystem> CreateAsync(FileSystemOptions options);
+        ValueTask<IFileSystem> CreateAsync(FileSystemOptions options, CancellationToken cancellationToken = default);
     }
 
-    public class FileSystemOptions
+    public record FileSystemOptions
     {
-        public IArchiveFileExtractorFactory? ArchiveFileExtractorFactory { get; init; }
+        public FileSystemOptions(IArchiveFileExtractorFactory archiveFileExtractorFactory, string temporaryDirectoryPath, IBytesPool bytesPool)
+        {
+            this.ArchiveFileExtractorFactory = archiveFileExtractorFactory;
+            this.TemporaryDirectoryPath = temporaryDirectoryPath;
+            this.BytesPool = bytesPool;
+        }
 
-        public string? TemporaryDirectoryPath { get; init; }
+        public IArchiveFileExtractorFactory ArchiveFileExtractorFactory { get; }
 
-        public IBytesPool? BytesPool { get; init; }
+        public string TemporaryDirectoryPath { get; }
+
+        public IBytesPool BytesPool { get; }
     }
 
     public interface IFileSystem : IAsyncDisposable

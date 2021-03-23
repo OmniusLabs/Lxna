@@ -10,8 +10,8 @@ using Avalonia.Controls;
 using Nito.AsyncEx;
 using Omnius.Core;
 using Omnius.Lxna.Components.Models;
-using Omnius.Lxna.Ui.Desktop.Interactors;
-using Omnius.Lxna.Ui.Desktop.Interactors.Models;
+using Omnius.Lxna.Ui.Desktop.Presenters;
+using Omnius.Lxna.Ui.Desktop.Presenters.Models;
 using Omnius.Lxna.Ui.Desktop.Resources;
 using Omnius.Lxna.Ui.Desktop.Resources.Models;
 using Omnius.Lxna.Ui.Desktop.Views.Helpers;
@@ -58,8 +58,42 @@ namespace Omnius.Lxna.Ui.Desktop.Views.Windows.Main.FileView
         {
             foreach (var drive in await _state.GetFileSystem().FindDirectoriesAsync())
             {
-                var model = new DirectoryModel(drive, _state.GetFileSystem());
+                var model = new DirectoryModel(drive, _state.GetFileSystem(), (m) => this.OnExpanded(m));
                 _rootDirectoryModels.Add(model);
+            }
+        }
+
+        private readonly AsyncLock _expandedAsyncLock = new();
+        private CancellationTokenSource _expandedCancellationTokenSource = new();
+
+        private async void OnExpanded(DirectoryModel model)
+        {
+            try
+            {
+                _expandedCancellationTokenSource.Cancel();
+
+                using (await _expandedAsyncLock.LockAsync())
+                {
+                    _expandedCancellationTokenSource.Dispose();
+                    _expandedCancellationTokenSource = new();
+
+                    var children = new List<DirectoryModel>();
+
+                    foreach (var directoryPath in await _state.GetFileSystem().FindDirectoriesAsync(model.Path, _expandedCancellationTokenSource.Token))
+                    {
+                        children.Add(new DirectoryModel(directoryPath, _state.GetFileSystem(), (m) => this.OnExpanded(m)));
+                    }
+
+                    foreach (var archiveFilePath in await _state.GetFileSystem().FindArchiveFilesAsync(model.Path, _expandedCancellationTokenSource.Token))
+                    {
+                        children.Add(new DirectoryModel(archiveFilePath, _state.GetFileSystem(), (m) => this.OnExpanded(m)));
+                    }
+
+                    model.Children = children;
+                }
+            }
+            catch (Exception)
+            {
             }
         }
 

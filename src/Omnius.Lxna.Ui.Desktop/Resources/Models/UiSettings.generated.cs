@@ -19,10 +19,7 @@ namespace Omnius.Lxna.Ui.Desktop.Resources.Models
 
         public int Thumbnail_Width
         {
-            get
-            {
-                return _thumbnail_Width;
-            }
+            get => _thumbnail_Width;
             set
             {
                 if (_thumbnail_Width != value)
@@ -36,10 +33,7 @@ namespace Omnius.Lxna.Ui.Desktop.Resources.Models
 
         public int Thumbnail_Height
         {
-            get
-            {
-                return _thumbnail_Height;
-            }
+            get => _thumbnail_Height;
             set
             {
                 if (_thumbnail_Height != value)
@@ -49,19 +43,16 @@ namespace Omnius.Lxna.Ui.Desktop.Resources.Models
                 }
             }
         }
-        private double _FileView_TreeViewWidth;
+        private double _fileView_TreeViewWidth;
 
         public double FileView_TreeViewWidth
         {
-            get
-            {
-                return _FileView_TreeViewWidth;
-            }
+            get => _fileView_TreeViewWidth;
             set
             {
-                if (_FileView_TreeViewWidth != value)
+                if (_fileView_TreeViewWidth != value)
                 {
-                    _FileView_TreeViewWidth = value;
+                    _fileView_TreeViewWidth = value;
                     this.RaisePropertyChanged(nameof(FileView_TreeViewWidth));
                 }
             }

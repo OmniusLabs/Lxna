@@ -7,9 +7,9 @@ using Omnius.Core;
 using Omnius.Core.Extensions;
 using Omnius.Lxna.Components;
 using Omnius.Lxna.Components.Models;
-using Omnius.Lxna.Ui.Desktop.Interactors.Models;
+using Omnius.Lxna.Ui.Desktop.Presenters.Models;
 
-namespace Omnius.Lxna.Ui.Desktop.Interactors
+namespace Omnius.Lxna.Ui.Desktop.Presenters
 {
     public class ThumbnailLoader : AsyncDisposableBase
     {
